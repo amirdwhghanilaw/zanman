@@ -1,0 +1,35 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip newest project
+        run: |
+          best=""; bestv=-1
+          for z in *.zip; do
+            v=$( (unzip -p "$z" ZangDaru/app/build.gradle | grep -o 'versionCode [0-9]*' | grep -o '[0-9]*') || echo 0 )
+            v=${v:-0}
+            echo "$z -> versionCode $v"
+            if [ "$v" -gt "$bestv" ]; then bestv=$v; best="$z"; fi
+          done
+          echo "Using: $best"
+          unzip -q -o "$best"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Build APK
+        working-directory: ZangDaru
+        run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zang-daru-apk
+          path: ZangDaru/app/build/outputs/apk/debug/app-debug.apk
